@@ -1,0 +1,72 @@
+[
+  {
+    "outlet_id": "SD1050",
+    "name": "Saman's Restaurant",
+    "type": "Eatery",
+    "last_visit_date": "2025-09-18",
+    "last_order_value": 45000,
+    "avg_order_value": 38000,
+    "preferred_visit_time": "morning",
+    "owner_name": "Saman Perera",
+    "relationship_score": 8,
+    "notes": ["Prefers early deliveries", "High Christmas demand"],
+    "lat": 7.2906,
+    "lng": 80.6337
+  },
+  {
+    "outlet_id": "NE2041",
+    "name": "Green Valley Store",
+    "type": "Non-Eatery",
+    "last_visit_date": "2025-10-05",
+    "last_order_value": 22000,
+    "avg_order_value": 25000,
+    "preferred_visit_time": "afternoon",
+    "owner_name": "Nimal Fernando",
+    "relationship_score": 7,
+    "notes": ["Consistent buyer", "Open to promotions"],
+    "lat": 7.2945,
+    "lng": 80.6389
+  },
+  {
+    "outlet_id": "SM3012",
+    "name": "City Mart Express",
+    "type": "SMMT",
+    "last_visit_date": "2025-10-02",
+    "last_order_value": 65000,
+    "avg_order_value": 58000,
+    "preferred_visit_time": "morning",
+    "owner_name": "Anusha Jayawardena",
+    "relationship_score": 9,
+    "notes": ["Top account", "Bulk orders during festivals", "Premium SKU preference"],
+    "lat": 7.2978,
+    "lng": 80.6422
+  },
+  {
+    "outlet_id": "EA1089",
+    "name": "Raja's Cafe",
+    "type": "Eatery",
+    "last_visit_date": "2025-09-22",
+    "last_order_value": 18000,
+    "avg_order_value": 20000,
+    "preferred_visit_time": "afternoon",
+    "owner_name": "Raja Kumar",
+    "relationship_score": 6,
+    "notes": ["Price sensitive", "Missed last 2 weeks"],
+    "lat": 7.2856,
+    "lng": 80.6298
+  },
+  {
+    "outlet_id": "NE2155",
+    "name": "Colombo Trade Center",
+    "type": "Non-Eatery",
+    "last_visit_date": "2025-10-08",
+    "last_order_value": 31000,
+    "avg_order_value": 29000,
+    "preferred_visit_time": "evening",
+    "owner_name": "Prasad Silva",
+    "relationship_score": 7,
+    "notes": ["Evening visits preferred", "Growing account"],
+    "lat": 7.3012,
+    "lng": 80.6455
+  }
+]
