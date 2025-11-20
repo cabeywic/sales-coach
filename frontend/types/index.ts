@@ -88,7 +88,7 @@ export interface Outlet {
 
 export interface Message {
   id: string;
-  role: "user" | "assistant";
+  role: "user" | "assistant" | "agent";
   content: string;
   timestamp: Date;
   metadata?: {

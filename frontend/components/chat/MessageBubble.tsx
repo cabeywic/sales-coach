@@ -16,6 +16,7 @@ interface MessageBubbleProps {
 export function MessageBubble({ message }: MessageBubbleProps) {
   const { voiceEnabled, selectedPersona } = useStore();
   const isUser = message.role === "user";
+  const isAI = message.role === "assistant" || message.role === "agent";
 
   const handleSpeak = async () => {
     await openAITTS.speak(message.content, selectedPersona);

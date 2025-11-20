@@ -219,10 +219,18 @@ export function useElevenLabsAgent(options: UseElevenLabsAgentOptions) {
       return;
     }
 
+    // Determine if this is a user message or agent message
+    // ElevenLabs SDK sends both user transcriptions and agent responses through onMessage
+    const isUserMessage =
+      message.source === "user" ||
+      message.role === "user" ||
+      message.type === "user_transcript" ||
+      message.sender === "user";
+
     // Parse message content
     const agentMessage: AgentMessage = {
       id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
-      role: "agent",
+      role: isUserMessage ? "user" : "agent",
       content,
       timestamp: new Date(),
       metadata: {
