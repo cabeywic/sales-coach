@@ -7,6 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function SettingsPage() {
   const { currentDSR, settings, updateSettings, setVoiceEnabled } = useStore();
@@ -68,6 +75,32 @@ export default function SettingsPage() {
 
       {/* Voice & Persona Settings */}
       <PersonaSelector />
+
+      {/* Language Preference */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Language Preference</CardTitle>
+          <CardDescription>
+            Choose your preferred language for voice conversations
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={settings.language}
+            onValueChange={(value) =>
+              updateSettings({ language: value as "english" | "tamil" })
+            }
+          >
+            <SelectTrigger className="w-[200px]">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="english">English</SelectItem>
+              <SelectItem value="tamil">Tamil (தமிழ்)</SelectItem>
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
 
       {/* Notification Preferences */}
       <Card>

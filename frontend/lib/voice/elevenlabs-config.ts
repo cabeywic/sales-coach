@@ -33,63 +33,125 @@ export interface AgentConfig {
   firstMessage?: string;
   /** Description of agent's personality */
   description: string;
+  /** Language code (en, si, ta) */
+  language?: string;
+}
+
+export interface LanguageAgentConfig {
+  /** English agent configuration */
+  english: AgentConfig;
+  /** Tamil agent configuration */
+  tamil?: AgentConfig;
 }
 
 /**
- * Agent mappings for each persona type
+ * Single Tamil agent that handles all personas
+ * When Tamil is selected, this agent is used regardless of persona
+ */
+const tamilAgentId = process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_TAMIL || "";
+
+/**
+ * Agent mappings for each persona type with language support
  *
  * SETUP INSTRUCTIONS:
  * 1. Go to https://elevenlabs.io/app/conversational-ai
- * 2. Create 4 agents (one for each persona)
- * 3. Configure each agent with appropriate prompts and voices
- * 4. Copy the agent IDs here
+ * 2. Create 4 separate English agents (one for each persona)
+ * 3. Create 1 Tamil agent (used for all personas)
+ * 4. Copy the agent IDs to your .env.local file
  *
- * Example:
- * professional: { agentId: "abc123...", name: "Professional Sales Coach", ... }
+ * Environment variables:
+ * English Agents (persona-specific):
+ * - NEXT_PUBLIC_ELEVENLABS_AGENT_PROFESSIONAL
+ * - NEXT_PUBLIC_ELEVENLABS_AGENT_FRIENDLY
+ * - NEXT_PUBLIC_ELEVENLABS_AGENT_MOTIVATOR
+ * - NEXT_PUBLIC_ELEVENLABS_AGENT_ADVISOR
+ * 
+ * Tamil Agent (shared across all personas):
+ * - NEXT_PUBLIC_ELEVENLABS_AGENT_TAMIL
  */
-export const agentConfigs: Record<PersonaType, AgentConfig> = {
+export const agentConfigs: Record<PersonaType, LanguageAgentConfig> = {
   professional: {
-    agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_PROFESSIONAL || "",
-    name: "Professional Sales Coach",
-    description: "Formal, data-driven coach focusing on analytics and performance metrics",
-    // Optional: Uncomment to override agent's default settings
-    // voiceId: "21m00Tcm4TlvDq8ikWAM", // Rachel - Professional voice
-    // systemPrompt: "You are a professional sales coach...",
+    english: {
+      agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_PROFESSIONAL || "",
+      name: "Professional Sales Coach",
+      description: "Formal, data-driven coach focusing on analytics and performance metrics",
+      language: "en",
+    },
+    tamil: {
+      agentId: tamilAgentId,
+      name: "Sales Coach (Tamil)",
+      description: "Tamil sales coach",
+      language: "ta",
+    },
   },
   friendly: {
-    agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_FRIENDLY || "",
-    name: "Friendly Mentor",
-    description: "Warm, supportive mentor with an encouraging approach",
-    // voiceId: "EXAVITQu4vr4xnSDxMaL", // Bella - Friendly voice
+    english: {
+      agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_FRIENDLY || "",
+      name: "Friendly Mentor",
+      description: "Warm, supportive mentor with an encouraging approach",
+      language: "en",
+    },
+    tamil: {
+      agentId: tamilAgentId,
+      name: "Sales Coach (Tamil)",
+      description: "Tamil sales coach",
+      language: "ta",
+    },
   },
   motivator: {
-    agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_MOTIVATOR || "",
-    name: "Energetic Motivator",
-    description: "Enthusiastic, high-energy coach that celebrates wins",
-    // voiceId: "MF3mGyEYCl7XYWbV9V6O", // Elli - Energetic voice
+    english: {
+      agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_MOTIVATOR || "",
+      name: "Energetic Motivator",
+      description: "Enthusiastic, high-energy coach that celebrates wins",
+      language: "en",
+    },
+    tamil: {
+      agentId: tamilAgentId,
+      name: "Sales Coach (Tamil)",
+      description: "Tamil sales coach",
+      language: "ta",
+    },
   },
   advisor: {
-    agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ADVISOR || "",
-    name: "Strategic Advisor",
-    description: "Calm, wise advisor with strategic insights",
-    // voiceId: "2EiwWnXFnvU5JabPnv8n", // Clyde - Deep, authoritative voice
+    english: {
+      agentId: process.env.NEXT_PUBLIC_ELEVENLABS_AGENT_ADVISOR || "",
+      name: "Strategic Advisor",
+      description: "Calm, wise advisor with strategic insights",
+      language: "en",
+    },
+    tamil: {
+      agentId: tamilAgentId,
+      name: "Sales Coach (Tamil)",
+      description: "Tamil sales coach",
+      language: "ta",
+    },
   },
 };
 
 /**
- * Get agent configuration for a specific persona
+ * Get agent configuration for a specific persona and language
+ * Note: For Tamil, all personas use the same agent (single Tamil agent for all)
  */
-export function getAgentConfig(persona: PersonaType): AgentConfig {
+export function getAgentConfig(persona: PersonaType, language: "english" | "tamil" = "english"): AgentConfig {
   const config = agentConfigs[persona];
+  
+  // Get language-specific config, fallback to English if Tamil not available
+  const languageConfig = language === "tamil" && config.tamil 
+    ? config.tamil 
+    : config.english;
 
-  if (!config.agentId) {
+  if (!languageConfig.agentId) {
+    const envVar = language === "tamil" 
+      ? `NEXT_PUBLIC_ELEVENLABS_AGENT_TAMIL (single agent for all personas)`
+      : `NEXT_PUBLIC_ELEVENLABS_AGENT_${persona.toUpperCase()}`;
+    
     console.warn(
-      `Agent ID not configured for persona "${persona}". ` +
-      `Set NEXT_PUBLIC_ELEVENLABS_AGENT_${persona.toUpperCase()} in .env.local`
+      `Agent ID not configured for ${language} language. ` +
+      `Set ${envVar} in .env.local`
     );
   }
 
-  return config;
+  return languageConfig;
 }
 
 // ============================================================================
@@ -354,4 +416,15 @@ export function getConfigSummary() {
     connection: defaultConnectionConfig,
     clientTools: Object.keys(clientTools),
   };
+}
+
+/**
+ * Map application language codes to ElevenLabs language codes
+ */
+export function getLanguageCode(language: "english" | "tamil"): string {
+  const languageMap: Record<"english" | "tamil", string> = {
+    english: "en",
+    tamil: "ta",
+  };
+  return languageMap[language] || "en";
 }

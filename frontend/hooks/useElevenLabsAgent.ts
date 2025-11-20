@@ -41,6 +41,7 @@ import {
   getPersonalizedGreeting,
   defaultConnectionConfig,
   errorMessages,
+  getLanguageCode,
 } from "@/lib/voice/elevenlabs-config";
 import {
   formatDSRContext,
@@ -121,7 +122,7 @@ export function useElevenLabsAgent(options: UseElevenLabsAgentOptions) {
   } = options;
 
   // Zustand store
-  const { currentDSR, addMessage, setIsSpeaking, setIsListening } = useStore();
+  const { currentDSR, addMessage, setIsSpeaking, setIsListening, settings } = useStore();
 
   // Local state
   const [state, setState] = useState<AgentState>({
@@ -139,8 +140,8 @@ export function useElevenLabsAgent(options: UseElevenLabsAgentOptions) {
   const conversationIdRef = useRef<string | null>(null);
   const hasInitializedRef = useRef(false);
 
-  // Agent configuration
-  const agentConfig = getAgentConfig(persona);
+  // Agent configuration with language support
+  const agentConfig = getAgentConfig(persona, settings.language);
 
   // Debug logger
   const log = useCallback(

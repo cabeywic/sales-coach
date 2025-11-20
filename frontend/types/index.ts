@@ -129,7 +129,7 @@ export interface Persona {
 
 export interface PersonalizationSettings {
   preferred_persona: PersonaType;
-  language: "english" | "sinhala" | "tamil";
+  language: "english" | "tamil";
   notification_preferences: {
     morning_briefing: boolean;
     real_time_nudges: boolean;
