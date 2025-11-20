@@ -6,17 +6,24 @@ import { OutletCard } from "@/components/insights/OutletCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { classifyPerformance, getPriorityOutlets, generateMorningBriefing } from "@/lib/agents/insights-engine";
-import { CheckCircle, TrendingUp, AlertCircle, ArrowRight } from "lucide-react";
+import { CheckCircle, TrendingUp, AlertCircle, ArrowRight, User } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useVoice } from "@/hooks/useVoice";
+import { openAITTS } from "@/lib/voice/openai-tts";
 import { Outlet } from "@/types";
 
 export default function Home() {
-  const { currentDSR, selectedPersona, outlets } = useStore();
-  const { speak, voiceEnabled } = useVoice();
+  const { currentDSR, selectedPersona, outlets, getAllDSRSummaries, setSelectedDSRId, selectedDSRId, voiceEnabled } = useStore();
   const [priorityOutlets, setPriorityOutlets] = useState<Outlet[]>([]);
+  const dsrSummaries = getAllDSRSummaries();
 
   useEffect(() => {
     if (currentDSR) {
@@ -37,26 +44,45 @@ export default function Home() {
   const targetAchievement = parseFloat(currentDSR.target_achievement.replace("%", ""));
   const salesGrowth = parseFloat(currentDSR.sales_growth_trend.replace("%", ""));
 
-  const handleMorningBriefing = () => {
+  const handleMorningBriefing = async () => {
     const briefing = generateMorningBriefing(currentDSR, priorityOutlets, selectedPersona);
     if (voiceEnabled) {
-      speak(briefing);
+      await openAITTS.speak(briefing, selectedPersona);
     }
   };
 
   return (
     <div className="container px-4 py-6 space-y-6">
-      {/* Welcome Section */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Welcome back, {currentDSR.dsr_name}!</h1>
-        <p className="text-muted-foreground">
-          {new Date().toLocaleDateString("en-US", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          })}
-        </p>
+      {/* Welcome Section with DSR Selector */}
+      <div className="space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold">Welcome back, {currentDSR.dsr_name}!</h1>
+            <p className="text-muted-foreground">
+              {new Date().toLocaleDateString("en-US", {
+                weekday: "long",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <Select value={selectedDSRId || undefined} onValueChange={setSelectedDSRId}>
+              <SelectTrigger className="w-[240px]">
+                <SelectValue placeholder="Select DSR" />
+              </SelectTrigger>
+              <SelectContent>
+                {dsrSummaries.map((summary) => (
+                  <SelectItem key={summary.dsr_id} value={summary.dsr_id}>
+                    {summary.dsr_name} ({summary.total_records} records)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
       </div>
 
       {/* Quick Actions */}

@@ -28,7 +28,7 @@ export function PersonaSelector() {
           value={selectedPersona}
           onValueChange={(value) => setSelectedPersona(value as PersonaType)}
         >
-          <SelectTrigger>
+          <SelectTrigger className="w-[200px]">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

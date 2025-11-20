@@ -1,90 +1,26 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useStore } from "@/store/useStore";
 import { ChatInterfaceWithOpenAI } from "@/components/chat/ChatInterfaceWithOpenAI";
 import { PerformanceCard } from "@/components/insights/PerformanceCard";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { classifyPerformance } from "@/lib/agents/insights-engine";
-import { Message } from "@/types";
-import { useVoice } from "@/hooks/useVoice";
-import { TrendingUp, TrendingDown, Target, Award } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { classifyPerformance, compareWithPreviousRecords } from "@/lib/agents/insights-engine";
+import { DSRInfo } from "@/types";
+import { TrendingUp, TrendingDown, Target, Award, History } from "lucide-react";
 
 export default function CoachingPage() {
-  const { currentDSR, selectedPersona, addMessage, coachingConversation } = useStore();
-  const { speak } = useVoice();
-  const hasGreetedRef = useRef(false);
+  const { currentDSR, dsrHistory } = useStore();
+  const [historicalComparison, setHistoricalComparison] = useState<ReturnType<typeof compareWithPreviousRecords> | null>(null);
 
   useEffect(() => {
-    if (currentDSR) {
-      // Only send initial greeting if this is a new session (empty conversation)
-      if (coachingConversation.length === 0 && !hasGreetedRef.current) {
-        hasGreetedRef.current = true;
-        const performance = classifyPerformance(currentDSR);
-        let greeting = "";
-
-        switch (selectedPersona) {
-          case "professional":
-            greeting = `Let's analyze your performance. You're at ${currentDSR.target_achievement} target achievement with ${currentDSR.sales_growth_trend} growth. Your development focus area is ${currentDSR.development_areas}.`;
-            break;
-          case "friendly":
-            greeting = `Hey! Great to see you here. You're doing well at ${currentDSR.target_achievement}, and I think we can push that even higher. Want to work on your ${currentDSR.development_areas}?`;
-            break;
-          case "motivator":
-            greeting = `YES! You're at ${currentDSR.target_achievement} - that's solid! But I KNOW you can hit 120%+! Let's crush your ${currentDSR.development_areas} goals together!`;
-            break;
-          case "advisor":
-            greeting = `Welcome. Looking at your ${currentDSR.target_achievement} achievement and ${currentDSR.sales_growth_trend} growth trajectory, I see strategic opportunities. Let's focus on ${currentDSR.development_areas}.`;
-            break;
-        }
-
-        const greetingMessage: Message = {
-          id: Date.now().toString(),
-          role: "assistant",
-          content: greeting,
-          timestamp: new Date(),
-          metadata: { mode: "coaching", persona: selectedPersona },
-        };
-        addMessage(greetingMessage);
-        speak(greeting);
-      }
+    if (currentDSR && dsrHistory.length > 0) {
+      const comparison = compareWithPreviousRecords(dsrHistory[0] as DSRInfo, dsrHistory);
+      setHistoricalComparison(comparison);
     }
-  }, [currentDSR, selectedPersona, addMessage, speak]);
-
-  const handleSendMessage = (message: string) => {
-    if (!currentDSR) return;
-
-    let response = "";
-    const performance = classifyPerformance(currentDSR);
-
-    if (message.toLowerCase().includes("perform") || message.toLowerCase().includes("doing")) {
-      response = `Your current performance is ${performance.status}. You're at ${currentDSR.target_achievement} target achievement with ${currentDSR.sales_growth_trend} growth trend. ${performance.recommendations[0]}`;
-    } else if (message.toLowerCase().includes("improve") || message.toLowerCase().includes("better")) {
-      response = `Based on your data, I recommend: ${performance.recommendations.join(" ")} Your strength is ${currentDSR.strength_areas}, so leverage that while working on ${currentDSR.development_areas}.`;
-    } else if (message.toLowerCase().includes("route") || message.toLowerCase().includes("efficiency")) {
-      response = `Your route efficiency is at ${currentDSR.route_efficiency_score.toFixed(0)}/100. To improve: 1) Cluster outlets by geography, 2) Visit based on preferred times, 3) Plan your route the night before. This could save you 2-3 hours per week!`;
-    } else if (message.toLowerCase().includes("goal") || message.toLowerCase().includes("target")) {
-      const currentAchievement = parseFloat(currentDSR.target_achievement.replace("%", ""));
-      const nextTarget = Math.ceil(currentAchievement / 10) * 10 + 10;
-      response = `You're at ${currentDSR.target_achievement}. Let's set a goal for ${nextTarget}% this month. To get there: increase outlet visits by 10%, focus on high-value accounts, and push ${currentDSR.current_festive_season} SKUs.`;
-    } else if (message.toLowerCase().includes("strength") || message.toLowerCase().includes("good at")) {
-      response = `Your strength area is ${currentDSR.strength_areas}! That's excellent. You can leverage this by mentoring other DSRs and using it to build even stronger customer relationships.`;
-    } else {
-      response = `I'm here to help you improve your performance. Would you like to discuss your target achievement, route efficiency, goal setting, or strategies to leverage your ${currentDSR.strength_areas} strength?`;
-    }
-
-    const assistantMessage: Message = {
-      id: (Date.now() + 1).toString(),
-      role: "assistant",
-      content: response,
-      timestamp: new Date(),
-      metadata: { mode: "coaching", persona: selectedPersona },
-    };
-
-    addMessage(assistantMessage);
-    speak(response);
-  };
+  }, [currentDSR, dsrHistory]);
 
   if (!currentDSR) {
     return (
@@ -99,21 +35,21 @@ export default function CoachingPage() {
   const salesGrowth = parseFloat(currentDSR.sales_growth_trend.replace("%", ""));
 
   return (
-    <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] flex flex-col">
-      <div className="border-b p-4">
+    <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-4rem)] flex flex-col overflow-hidden">
+      <div className="border-b p-4 flex-shrink-0">
         <h1 className="text-2xl font-bold">Coaching Mode</h1>
         <p className="text-sm text-muted-foreground">
           Personalized development and performance improvement
         </p>
       </div>
 
-      <Tabs defaultValue="chat" className="flex-1 flex flex-col">
-        <TabsList className="mx-4 mt-4">
+      <Tabs defaultValue="chat" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="mx-4 mt-4 flex-shrink-0">
           <TabsTrigger value="chat">Chat</TabsTrigger>
           <TabsTrigger value="analysis">Performance Analysis</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="chat" className="flex-1 mt-0">
+        <TabsContent value="chat" className="flex-1 mt-0 min-h-0">
           <ChatInterfaceWithOpenAI
             mode="coaching"
             placeholder="Ask about your performance, goals, or improvement strategies..."
@@ -214,10 +150,87 @@ export default function CoachingPage() {
               </CardContent>
             </Card>
 
-            {/* Performance Trends */}
+            {/* Historical Comparison */}
+            {historicalComparison && dsrHistory.length > 1 && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    <CardTitle>Performance Trends</CardTitle>
+                  </div>
+                  <CardDescription>
+                    Comparing with previous records ({dsrHistory.length} total records)
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">Target Achievement Trend</span>
+                      <Badge
+                        variant={
+                          historicalComparison.targetAchievementTrend === "improving"
+                            ? "default"
+                            : historicalComparison.targetAchievementTrend === "declining"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {historicalComparison.targetAchievementTrend}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">Sales Growth Momentum</span>
+                      <Badge
+                        variant={
+                          historicalComparison.salesGrowthTrend === "improving"
+                            ? "default"
+                            : historicalComparison.salesGrowthTrend === "declining"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {historicalComparison.salesGrowthTrend}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <span className="font-medium">Route Efficiency Trend</span>
+                      <Badge
+                        variant={
+                          historicalComparison.routeEfficiencyTrend === "improving"
+                            ? "default"
+                            : historicalComparison.routeEfficiencyTrend === "declining"
+                            ? "destructive"
+                            : "secondary"
+                        }
+                      >
+                        {historicalComparison.routeEfficiencyTrend}
+                      </Badge>
+                    </div>
+
+                    {historicalComparison.insights.length > 0 && (
+                      <div className="pt-4 border-t">
+                        <p className="text-sm font-medium mb-2">Key Insights:</p>
+                        <ul className="space-y-2">
+                          {historicalComparison.insights.map((insight, index) => (
+                            <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                              <span className="text-primary">•</span>
+                              <span>{insight}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Performance Insights */}
             <Card>
               <CardHeader>
-                <CardTitle>Performance Insights</CardTitle>
+                <CardTitle>Current Performance Insights</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">

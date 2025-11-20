@@ -6,10 +6,9 @@ import { Message } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Mic, MicOff } from "lucide-react";
+import { Send } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { QuickActions } from "./QuickActions";
-import { useVoice } from "@/hooks/useVoice";
 import { cn } from "@/lib/utils";
 
 interface ChatInterfaceProps {
@@ -29,9 +28,7 @@ export function ChatInterface({
     currentConversation,
     addMessage,
     selectedPersona,
-    voiceEnabled,
   } = useStore();
-  const { speak, startListening, stopListening, isListening } = useVoice();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -59,15 +56,6 @@ export function ChatInterface({
     setInput("");
   };
 
-  const handleVoiceInput = () => {
-    if (isListening) {
-      stopListening();
-    } else {
-      startListening((transcript) => {
-        setInput(transcript);
-      });
-    }
-  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -111,26 +99,9 @@ export function ChatInterface({
               rows={2}
             />
 
-            <div className="flex flex-col gap-2">
-              {voiceEnabled && (
-                <Button
-                  variant={isListening ? "default" : "outline"}
-                  size="icon"
-                  onClick={handleVoiceInput}
-                  className={cn(isListening && "animate-pulse")}
-                >
-                  {isListening ? (
-                    <MicOff className="h-4 w-4" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
-                  )}
-                </Button>
-              )}
-
-              <Button onClick={handleSend} size="icon" disabled={!input.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </div>
+            <Button onClick={handleSend} size="icon" disabled={!input.trim()}>
+              <Send className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </div>

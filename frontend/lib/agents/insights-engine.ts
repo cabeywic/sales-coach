@@ -1,4 +1,4 @@
-import { DSRData, Outlet, PerformanceInsight, Nudge } from "@/types";
+import { DSRData, DSRInfo, Outlet, PerformanceInsight, Nudge } from "@/types";
 
 export function classifyPerformance(dsrData: DSRData): PerformanceInsight {
   const targetAchievement = parseFloat(dsrData.target_achievement.replace("%", ""));
@@ -214,4 +214,136 @@ export function generateOutletIntelligence(outlet: Outlet): string {
   }
 
   return intelligence;
+}
+
+// Multi-DSR Helper Functions
+
+/**
+ * Get all unique DSR IDs from records
+ */
+export function getAllDSRIds(allRecords: DSRInfo[]): string[] {
+  const uniqueIds = new Set(allRecords.map((record) => record.dsr_id));
+  return Array.from(uniqueIds).sort();
+}
+
+/**
+ * Get all records for a specific DSR, sorted by date (latest first)
+ */
+export function getDSRHistory(allRecords: DSRInfo[], dsrId: string): DSRInfo[] {
+  return allRecords
+    .filter((record) => record.dsr_id === dsrId)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+/**
+ * Get latest record for a specific DSR
+ */
+export function getLatestDSRRecord(allRecords: DSRInfo[], dsrId: string): DSRInfo | null {
+  const history = getDSRHistory(allRecords, dsrId);
+  return history.length > 0 ? history[0] : null;
+}
+
+/**
+ * Get DSR records filtered by year-month
+ */
+export function getDSRRecordsByMonth(
+  allRecords: DSRInfo[],
+  dsrId: string,
+  yearMonth: string
+): DSRInfo[] {
+  return allRecords
+    .filter((record) => record.dsr_id === dsrId && record.year_month === yearMonth)
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+}
+
+/**
+ * Compare current performance with previous records
+ */
+export function compareWithPreviousRecords(
+  currentRecord: DSRInfo,
+  history: DSRInfo[]
+): {
+  targetAchievementTrend: "improving" | "declining" | "stable";
+  salesGrowthTrend: "improving" | "declining" | "stable";
+  routeEfficiencyTrend: "improving" | "declining" | "stable";
+  insights: string[];
+} {
+  if (history.length < 2) {
+    return {
+      targetAchievementTrend: "stable",
+      salesGrowthTrend: "stable",
+      routeEfficiencyTrend: "stable",
+      insights: ["Not enough historical data for comparison"],
+    };
+  }
+
+  const previousRecord = history[1]; // Second record (first is current)
+  const insights: string[] = [];
+
+  // Compare target achievement
+  const currentTarget = parseFloat(currentRecord.target_achievement.replace("%", ""));
+  const previousTarget = parseFloat(previousRecord.target_achievement.replace("%", ""));
+  const targetDiff = currentTarget - previousTarget;
+
+  let targetAchievementTrend: "improving" | "declining" | "stable" = "stable";
+  if (targetDiff > 5) {
+    targetAchievementTrend = "improving";
+    insights.push(`Target achievement improved by ${targetDiff.toFixed(1)}%`);
+  } else if (targetDiff < -5) {
+    targetAchievementTrend = "declining";
+    insights.push(`Target achievement declined by ${Math.abs(targetDiff).toFixed(1)}%`);
+  }
+
+  // Compare sales growth
+  const currentGrowth = parseFloat(currentRecord.sales_growth_trend.replace("%", ""));
+  const previousGrowth = parseFloat(previousRecord.sales_growth_trend.replace("%", ""));
+  const growthDiff = currentGrowth - previousGrowth;
+
+  let salesGrowthTrend: "improving" | "declining" | "stable" = "stable";
+  if (growthDiff > 3) {
+    salesGrowthTrend = "improving";
+    insights.push(`Sales growth momentum increasing (+${growthDiff.toFixed(1)}%)`);
+  } else if (growthDiff < -3) {
+    salesGrowthTrend = "declining";
+    insights.push(`Sales growth momentum decreasing (${growthDiff.toFixed(1)}%)`);
+  }
+
+  // Compare route efficiency
+  const efficiencyDiff = currentRecord.route_efficiency_score - previousRecord.route_efficiency_score;
+
+  let routeEfficiencyTrend: "improving" | "declining" | "stable" = "stable";
+  if (efficiencyDiff > 5) {
+    routeEfficiencyTrend = "improving";
+    insights.push(`Route efficiency improved by ${efficiencyDiff.toFixed(1)} points`);
+  } else if (efficiencyDiff < -5) {
+    routeEfficiencyTrend = "declining";
+    insights.push(`Route efficiency declined by ${Math.abs(efficiencyDiff).toFixed(1)} points`);
+  }
+
+  return {
+    targetAchievementTrend,
+    salesGrowthTrend,
+    routeEfficiencyTrend,
+    insights,
+  };
+}
+
+/**
+ * Get performance trend over multiple records
+ */
+export function getPerformanceTrend(history: DSRInfo[]): {
+  dates: string[];
+  targetAchievement: number[];
+  salesGrowth: number[];
+  routeEfficiency: number[];
+} {
+  // Get last 6 records, sorted oldest to newest for charting
+  const recentHistory = history.slice(0, 6).reverse();
+
+  return {
+    dates: recentHistory.map((r) => r.date),
+    targetAchievement: recentHistory.map((r) => parseFloat(r.target_achievement.replace("%", ""))),
+    salesGrowth: recentHistory.map((r) => parseFloat(r.sales_growth_trend.replace("%", ""))),
+    routeEfficiency: recentHistory.map((r) => r.route_efficiency_score),
+  };
 }

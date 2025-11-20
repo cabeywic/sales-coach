@@ -25,7 +25,8 @@ export async function POST(req: NextRequest) {
       messages: [
         { role: "system", content: systemPrompt },
         ...messages.map((msg: any) => ({
-          role: msg.role,
+          // Map 'agent' role (from ElevenLabs) to 'assistant' for OpenAI
+          role: msg.role === "agent" ? "assistant" : msg.role,
           content: msg.content,
         })),
       ],

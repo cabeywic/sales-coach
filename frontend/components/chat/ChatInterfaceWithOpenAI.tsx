@@ -6,10 +6,10 @@ import { Message } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Mic, MicOff, Phone, PhoneOff, Loader2 } from "lucide-react";
+import { Send, Mic, MicOff, Loader2 } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { QuickActions } from "./QuickActions";
-import { useOpenAIVoice } from "@/hooks/useOpenAIVoice";
+import { useElevenLabsAgent } from "@/hooks/useElevenLabsAgent";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -39,16 +39,40 @@ export function ChatInterfaceWithOpenAI({
   // Use mode-specific conversation
   const modeConversation = mode === "checkin" ? checkinConversation : coachingConversation;
 
+  const agent = useElevenLabsAgent({
+    persona: selectedPersona,
+    mode,
+    onMessage: (message) => {
+      // Message already added to store by the hook
+      // This callback is for additional processing if needed
+    },
+    onError: (error) => {
+      console.error("[ChatInterface] Agent error:", error);
+    },
+    debug: process.env.NODE_ENV === "development",
+  });
+
   const {
-    isConnected,
-    isListening,
-    isSpeaking,
+    connected: isConnected,
+    speaking: isSpeaking,
+    listening: isListening,
+    error,
+    isConnecting,
     connect,
     disconnect,
-    startListening,
-    stopListening,
-    sendTextMessage,
-  } = useOpenAIVoice(mode);
+  } = agent;
+
+  const isActive = isConnected;
+
+  // Debug logging
+  console.log("[ChatInterface] Current state:", {
+    isConnected,
+    isSpeaking,
+    isListening,
+    isActive,
+    isConnecting,
+    voiceEnabled,
+  });
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -56,70 +80,76 @@ export function ChatInterfaceWithOpenAI({
     }
   }, [modeConversation]);
 
+  // Toggle voice connection
+  const toggle = async () => {
+    if (isConnected) {
+      await disconnect();
+    } else {
+      await connect();
+    }
+  };
+
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    const messageText = input;
+    setInput("");
+
+    // Text messages ALWAYS use OpenAI API (regardless of voice connection)
+    // Voice conversations happen separately through the WebRTC connection
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
       role: "user",
-      content: input,
+      content: messageText,
       timestamp: new Date(),
       metadata: { mode, persona: selectedPersona },
     };
 
     addMessage(userMessage);
-    const messageText = input;
-    setInput("");
     setIsLoading(true);
 
     try {
-      // If voice is connected, use voice API
-      if (isConnected && voiceEnabled) {
-        sendTextMessage(messageText);
-      } else {
-        // Otherwise use text chat API
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messages: [
-              ...modeConversation
-                .slice(-10)
-                .map((msg) => ({
-                  role: msg.role,
-                  content: msg.content,
-                })),
-              { role: "user", content: messageText },
-            ],
-            mode,
-            dsrData: currentDSR,
-            persona: selectedPersona,
-          }),
-        });
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: [
+            ...modeConversation
+              .slice(-10)
+              .map((msg) => ({
+                role: msg.role,
+                content: msg.content,
+              })),
+            { role: "user", content: messageText },
+          ],
+          mode,
+          dsrData: currentDSR,
+          persona: selectedPersona,
+        }),
+      });
 
-        if (!response.ok) {
-          throw new Error("Failed to get response");
-        }
-
-        const data = await response.json();
-
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: "assistant",
-          content: data.response,
-          timestamp: new Date(),
-          metadata: { mode, persona: selectedPersona },
-        };
-
-        addMessage(assistantMessage);
+      if (!response.ok) {
+        throw new Error("Failed to get response");
       }
+
+      const data = await response.json();
+
+      const assistantMessage: Message = {
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        role: "assistant",
+        content: data.response,
+        timestamp: new Date(),
+        metadata: { mode, persona: selectedPersona },
+      };
+
+      addMessage(assistantMessage);
     } catch (error) {
       console.error("Failed to send message:", error);
 
       const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         role: "assistant",
         content: "Sorry, I'm having trouble connecting. Please try again.",
         timestamp: new Date(),
@@ -132,29 +162,6 @@ export function ChatInterfaceWithOpenAI({
     }
   };
 
-  const handleVoiceToggle = async () => {
-    if (!voiceEnabled) return;
-
-    if (isConnected) {
-      disconnect();
-    } else {
-      await connect();
-    }
-  };
-
-  const handleMicToggle = async () => {
-    if (!voiceEnabled || !isConnected) {
-      await connect();
-      return;
-    }
-
-    if (isListening) {
-      stopListening();
-    } else {
-      await startListening();
-    }
-  };
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -163,48 +170,42 @@ export function ChatInterfaceWithOpenAI({
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Voice Status Bar */}
-      {voiceEnabled && (
-        <div className="border-b bg-muted/50 px-4 py-2">
-          <div className="flex items-center justify-between max-w-3xl mx-auto">
-            <div className="flex items-center gap-2">
-              <Badge variant={isConnected ? "default" : "secondary"}>
-                {isConnected ? "Voice Connected" : "Voice Disconnected"}
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Simplified Voice Status */}
+      {voiceEnabled && isActive && (
+        <div className="border-b bg-muted/50 px-4 py-2 flex-shrink-0">
+          <div className="flex items-center justify-center gap-2 max-w-3xl mx-auto">
+            {isSpeaking && (
+              <Badge variant="default" className="animate-pulse">
+                🎙️ AI Speaking...
               </Badge>
-              {isSpeaking && (
-                <Badge variant="outline" className="animate-pulse">
-                  AI Speaking...
-                </Badge>
-              )}
-              {isListening && (
-                <Badge variant="outline" className="animate-pulse">
-                  Listening...
-                </Badge>
-              )}
-            </div>
-            <Button
-              variant={isConnected ? "destructive" : "default"}
-              size="sm"
-              onClick={handleVoiceToggle}
-            >
-              {isConnected ? (
-                <>
-                  <PhoneOff className="h-3 w-3 mr-2" />
-                  Disconnect
-                </>
-              ) : (
-                <>
-                  <Phone className="h-3 w-3 mr-2" />
-                  Connect Voice
-                </>
-              )}
-            </Button>
+            )}
+            {isListening && !isSpeaking && (
+              <Badge variant="outline" className="animate-pulse">
+                👂 Listening...
+              </Badge>
+            )}
+            {!isSpeaking && !isListening && (
+              <Badge variant="secondary">
+                🟢 Voice Active
+              </Badge>
+            )}
+            {error && (
+              <Badge variant="destructive">
+                ⚠️ {error.message || "Connection error"}
+              </Badge>
+            )}
+            {isConnecting && (
+              <Badge variant="secondary">
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                Connecting...
+              </Badge>
+            )}
           </div>
         </div>
       )}
 
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 min-h-0 p-4" ref={scrollRef}>
         <div className="space-y-4 max-w-3xl mx-auto">
           {modeConversation.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
@@ -215,7 +216,9 @@ export function ChatInterfaceWithOpenAI({
               </p>
               <p className="text-sm">
                 {voiceEnabled
-                  ? "Click 'Connect Voice' to start a voice conversation, or type below"
+                  ? isActive
+                    ? "Voice active - speak naturally. Text messages use OpenAI."
+                    : "Click the microphone to start voice conversation"
                   : "Type your message below or use quick actions"}
               </p>
             </div>
@@ -233,50 +236,67 @@ export function ChatInterfaceWithOpenAI({
         </div>
       </ScrollArea>
 
-      <div className="border-t bg-background p-4">
+      <div className="border-t bg-background p-4 flex-shrink-0">
         <div className="max-w-3xl mx-auto space-y-3">
           <QuickActions mode={mode} onActionClick={(action) => setInput(action)} />
 
+          {/* Voice toggle button - separated from text input for better layout */}
+          {voiceEnabled && (
+            <Button
+              variant={isActive ? "default" : "outline"}
+              size="lg"
+              onClick={toggle}
+              className={cn(
+                "w-full",
+                isActive && "bg-green-600 hover:bg-green-700"
+              )}
+              disabled={isConnecting}
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Connecting...
+                </>
+              ) : isActive ? (
+                <>
+                  <MicOff className="h-5 w-5 mr-2" />
+                  End Voice Chat
+                </>
+              ) : (
+                <>
+                  <Mic className="h-5 w-5 mr-2" />
+                  Start Voice Chat
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Text input API - separate from voice */}
           <div className="flex gap-2 items-end">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={placeholder}
+              placeholder={
+                isActive
+                  ? "Type message"
+                  : `${placeholder}`
+              }
               className="min-h-[60px] max-h-[120px] resize-none"
               rows={2}
-              disabled={isLoading || (voiceEnabled && isConnected)}
+              disabled={isLoading}
             />
-
-            <div className="flex flex-col gap-2">
-              {voiceEnabled && (
-                <Button
-                  variant={isListening ? "default" : "outline"}
-                  size="icon"
-                  onClick={handleMicToggle}
-                  className={cn(isListening && "animate-pulse")}
-                  disabled={isSpeaking}
-                >
-                  {isListening ? (
-                    <MicOff className="h-4 w-4" />
-                  ) : (
-                    <Mic className="h-4 w-4" />
-                  )}
-                </Button>
+            <Button
+              onClick={handleSend}
+              size="icon"
+              disabled={!input.trim() || isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Send className="h-4 w-4" />
               )}
-
-              <Button
-                onClick={handleSend}
-                size="icon"
-                disabled={!input.trim() || isLoading || (voiceEnabled && isConnected)}
-              >
-                {isLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
+            </Button>
           </div>
         </div>
       </div>

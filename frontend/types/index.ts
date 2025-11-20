@@ -1,4 +1,4 @@
-// Core DSR Data Structure
+// Core DSR Data Structure (legacy single record)
 export interface DSRData {
   // Identity
   date: string;
@@ -55,6 +55,19 @@ export interface DSRData {
   response_rate_to_coach: string;
   day_of_week_performance: string;
   conversation_summary_last_week: string;
+}
+
+// Extended DSR Info with outlet reference (from dsr-info.json)
+export interface DSRInfo extends DSRData {
+  outlet_id: string;
+}
+
+// DSR Summary for selection
+export interface DSRSummary {
+  dsr_id: string;
+  dsr_name: string;
+  latest_record: DSRInfo;
+  total_records: number;
 }
 
 export interface Outlet {
@@ -157,8 +170,11 @@ export interface DashboardMetrics {
 }
 
 export interface AppState {
-  // User
-  currentDSR: DSRData | null;
+  // User - Multi-DSR Support
+  allDSRs: DSRInfo[];
+  selectedDSRId: string | null;
+  currentDSR: DSRData | null; // Current selected DSR's latest record
+  dsrHistory: DSRInfo[]; // All records for selected DSR
   settings: PersonalizationSettings;
 
   // UI State
@@ -179,6 +195,10 @@ export interface AppState {
 
   // Actions
   setCurrentDSR: (dsr: DSRData) => void;
+  setSelectedDSRId: (dsrId: string) => void;
+  getDSRRecords: (dsrId: string) => DSRInfo[];
+  getLatestDSRRecord: (dsrId: string) => DSRInfo | null;
+  getAllDSRSummaries: () => DSRSummary[];
   setActiveMode: (mode: AppState["activeMode"]) => void;
   setSelectedPersona: (persona: PersonaType) => void;
   updateSettings: (settings: Partial<PersonalizationSettings>) => void;

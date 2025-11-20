@@ -4,7 +4,8 @@ import { Message } from "@/types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Volume2 } from "lucide-react";
-import { useVoice } from "@/hooks/useVoice";
+import { useStore } from "@/store/useStore";
+import { openAITTS } from "@/lib/voice/openai-tts";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 
@@ -13,8 +14,12 @@ interface MessageBubbleProps {
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
-  const { speak, voiceEnabled } = useVoice();
+  const { voiceEnabled, selectedPersona } = useStore();
   const isUser = message.role === "user";
+
+  const handleSpeak = async () => {
+    await openAITTS.speak(message.content, selectedPersona);
+  };
 
   return (
     <div className={cn("flex gap-3", isUser && "flex-row-reverse")}>
@@ -46,7 +51,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
               variant="ghost"
               size="sm"
               className="h-6 px-2"
-              onClick={() => speak(message.content)}
+              onClick={handleSpeak}
             >
               <Volume2 className="h-3 w-3" />
             </Button>
