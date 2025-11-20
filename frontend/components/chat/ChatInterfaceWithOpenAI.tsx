@@ -34,6 +34,7 @@ export function ChatInterfaceWithOpenAI({
     selectedPersona,
     voiceEnabled,
     currentDSR,
+    settings,
   } = useStore();
 
   // Use mode-specific conversation
@@ -127,6 +128,7 @@ export function ChatInterfaceWithOpenAI({
           mode,
           dsrData: currentDSR,
           persona: selectedPersona,
+          language: settings.language, // Pass language setting for Tamil support
         }),
       });
 
@@ -151,7 +153,9 @@ export function ChatInterfaceWithOpenAI({
       const errorMessage: Message = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         role: "assistant",
-        content: "Sorry, I'm having trouble connecting. Please try again.",
+        content: settings.language === "tamil"
+          ? "மன்னிக்கவும், எனக்கு இணைப்பில் சிக்கல் உள்ளது. மீண்டும் முயற்சிக்கவும்."
+          : "Sorry, I'm having trouble connecting. Please try again.",
         timestamp: new Date(),
         metadata: { mode, persona: selectedPersona },
       };
@@ -210,16 +214,26 @@ export function ChatInterfaceWithOpenAI({
           {modeConversation.length === 0 ? (
             <div className="text-center text-muted-foreground py-12">
               <p className="text-lg mb-2">
-                {mode === "checkin"
-                  ? "Ready to start your day?"
-                  : "Let's work on improving your performance"}
+                {settings.language === "tamil"
+                  ? mode === "checkin"
+                    ? "உங்கள் நாளைத் தொடங்க தயாரா?"
+                    : "உங்கள் செயல்திறனை மேம்படுத்துவோம்"
+                  : mode === "checkin"
+                    ? "Ready to start your day?"
+                    : "Let's work on improving your performance"}
               </p>
               <p className="text-sm">
-                {voiceEnabled
-                  ? isActive
-                    ? "Voice active - speak naturally. Text messages use OpenAI."
-                    : "Click the microphone to start voice conversation"
-                  : "Type your message below or use quick actions"}
+                {settings.language === "tamil"
+                  ? voiceEnabled
+                    ? isActive
+                      ? "குரல் செயலில் உள்ளது - இயல்பாகப் பேசுங்கள்"
+                      : "குரல் உரையாடலைத் தொடங்க மைக்ரோஃபோனைக் கிளிக் செய்யவும்"
+                    : "கீழே உங்கள் செய்தியை தட்டச்சு செய்யவும் அல்லது விரைவு செயல்களைப் பயன்படுத்தவும்"
+                  : voiceEnabled
+                    ? isActive
+                      ? "Voice active - speak naturally"
+                      : "Click the microphone to start voice conversation"
+                    : "Type your message below or use quick actions"}
               </p>
             </div>
           ) : (
@@ -230,7 +244,9 @@ export function ChatInterfaceWithOpenAI({
           {isLoading && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span className="text-sm">Thinking...</span>
+              <span className="text-sm">
+                {settings.language === "tamil" ? "சிந்திக்கிறது..." : "Thinking..."}
+              </span>
             </div>
           )}
         </div>
@@ -238,7 +254,11 @@ export function ChatInterfaceWithOpenAI({
 
       <div className="border-t bg-background p-4 flex-shrink-0">
         <div className="max-w-3xl mx-auto space-y-3">
-          <QuickActions mode={mode} onActionClick={(action) => setInput(action)} />
+          <QuickActions
+            mode={mode}
+            onActionClick={(action) => setInput(action)}
+            language={settings.language}
+          />
 
           {/* Voice toggle button - separated from text input for better layout */}
           {voiceEnabled && (

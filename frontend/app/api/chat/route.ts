@@ -7,7 +7,7 @@ const openai = new OpenAI({
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, mode, dsrData, persona } = await req.json();
+    const { messages, mode, dsrData, persona, language } = await req.json();
 
     if (!messages || !Array.isArray(messages)) {
       return NextResponse.json(
@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build system prompt based on mode and DSR data
-    const systemPrompt = buildSystemPrompt(mode, dsrData, persona);
+    // Build system prompt based on mode, DSR data, persona, and language
+    const systemPrompt = buildSystemPrompt(mode, dsrData, persona, language);
 
     // Call OpenAI Chat Completion API
     const completion = await openai.chat.completions.create({
@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
 function buildSystemPrompt(
   mode: "checkin" | "coaching",
   dsrData: any,
-  persona: string
+  persona: string,
+  language?: "english" | "tamil"
 ): string {
   const personaStyles = {
     professional:
@@ -64,6 +65,11 @@ function buildSystemPrompt(
     advisor:
       "You are a wise, strategic sales advisor. Be calm and thoughtful, focusing on long-term strategy and development.",
   };
+
+  // Tamil language instruction - ONLY when Tamil is selected
+  const languageInstruction = language === "tamil"
+    ? "\n\nIMPORTANT: You MUST respond ONLY in Tamil language (தமிழ்). All your responses should be completely in Tamil script. Do not use English unless the user specifically asks you to translate something."
+    : "";
 
   const baseContext = `
 You are a sales coach assistant for Ceylon Cold Stores (CCS), helping Direct Sales Representatives (DSRs) in the field.
@@ -80,7 +86,7 @@ DSR Profile:
 - Development Areas: ${dsrData?.development_areas || "N/A"}
 - Current Festive Season: ${dsrData?.current_festive_season || "None"}
 
-Persona: ${personaStyles[persona as keyof typeof personaStyles] || personaStyles.friendly}
+Persona: ${personaStyles[persona as keyof typeof personaStyles] || personaStyles.friendly}${languageInstruction}
 `;
 
   if (mode === "checkin") {
